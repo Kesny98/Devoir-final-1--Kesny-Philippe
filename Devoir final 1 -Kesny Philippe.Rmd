@@ -1,0 +1,320 @@
+---
+title: "Devoir final 1"
+author: "Kesny Philippe"
+date: '2022-06-03'
+output: word_document
+---
+
+
+// Ce travail est effectué sur les agrégats monétaires de la Banque de la République d'Haïti. Ensuite, une manipulation des données est réalisée ;
+
+// Avec Un filtrage des colonnes de septembre 1992 jusqu'à Octobre 2021 ainsi que la suppression des lignes et des colonnes non nécessaires pour la réalision du projet ;
+// Un choix de 3 variables (ou colonnes) a été fait: le taux de change (USD en HTG), la masse monétaire en circulation(millions de gourdes) et inflation (en pourcentage).
+```{r, message=FALSE, warning=FALSE, echo=F }
+library(tidyverse)
+library(readxl)
+library(tseries)
+library(lmtest)
+
+
+
+#################
+# 1. Importation des données 
+#################
+
+# importation du fichier
+
+url10<-'https://www.brh.ht/wp-content/uploads/agregatsmon.xls'
+kp1 <- tempfile()
+download.file(url1, p1f, mode="wb")
+agregatsmon.data <-read_excel(path = kp1, skip = 2)
+
+### Affichage des 6 premières lignes
+head(agregatsmon.data) 
+
+#### Suppression des 10 dernières lignes
+tail(agregatsmon.data, n = 10) 
+
+### data cleaning
+
+agregatsmon.data <- rename(agregatsmon.data, Date = ...1) 
+
+agregatsmon.data <- agregatsmon.data[-1,] ### Effacer les premières lignes des variables ne présentant rien
+
+### conversion de la date en format caractère -> numérique
+agregatsmon.data$Date <- as.numeric(agregatsmon.data$Date)
+
+
+### Sum(is.na(agregatsmon.data$Date)) 
+### Dates non formatées : 399 - 410, 430-434
+
+agregatsmon.data$Date <- as.Date(agregatsmon.data$Date, 
+                                 origin = "1992-09-01")
+### conversion dates format number in  correct format
+### Prenons le 30 septembre 1992 comme année de départ 
+
+### agregatsmon.data$Date ### vérification pour exact match avec fichier Excel
+
+### Formattage des dates manquantes
+### Hint: taper les valeurs en observant le fichier excel 
+
+agregatsmon.data$Date[399] <- "2011-09-01"
+agregatsmon.data$Date[400] <- "2011-10-01"
+agregatsmon.data$Date[401] <- "2011-11-01"
+agregatsmon.data$Date[402] <- "2011-12-01"
+agregatsmon.data$Date[403] <- "2012-01-01"
+agregatsmon.data$Date[404] <- "2004-02-01"
+agregatsmon.data$Date[405] <- "2012-03-01"
+agregatsmon.data$Date[406] <- "2012-04-01"
+agregatsmon.data$Date[407] <- "2012-05-01"
+agregatsmon.data$Date[408] <- "2012-06-01"
+agregatsmon.data$Date[409] <- "2012-07-01"
+agregatsmon.data$Date[410] <- "2012-08-01"
+
+agregatsmon.data$Date[430] <- "2014-04-01"
+agregatsmon.data$Date[431] <- "2014-05-01"
+agregatsmon.data$Date[432] <- "2014-06-01"
+agregatsmon.data$Date[433] <- "2014-07-01"
+agregatsmon.data$Date[434] <- "2014-08-01"
+
+
+
+#########
+# 2. Appliquons les filtrages
+#########
+
+agregatsmon.data2 <- agregatsmon.data %>%
+filter(Date >= "2107-12-04")%>%
+#head(agregatsmon.data2)
+
+#######
+# 3. Enlever toutes les colonnes inutiles
+###########
+
+agregatsmon.data2 <- agregatsmon.data2 %>% 
+
+#head(agregatsmon.data3)
+
+agregatsmon.data3 <- agregatsmon.data3[, c(10,14,24)]
+
+
+agregatsmon.data3 <- agregatsmon.data3 %>%
+  rename(`Inflation (glisse.annuel)`) = "inflation"
+         taux_de_change = "TAUX DE CHANGE BRH"
+         monnaie_en_circulation = "MONNAIE EN CIRCULATION"
+
+agregatsmon.data3 <- agregatsmon.data3 %>%
+         mutate(`Inflation (glisse.annuel)`) = as.numeric(inflation)
+         taux_de_change = as.numeric(taux_de_change)
+         monnaie_en_circulation  = as.numeric(monnaie_en_circulation)
+         inflation = as.numeric(inflation)
+
+#head(agregatsmon.data3)
+
+
+agregatsmon.data3$Date <- agregatsmon.data2$Date
+
+
+
+```
+
+
+Sur ces trois variables, il faut
+
+// Vérifier si elles sont stationnaires en niveau ou en différence premiere ou deuxieme
+// vérifier les sens de la causalité, au sens de Granger, entre ces trois variables
+// réaliser une regression linéaire tenant compte des résultats des tests de causalité
+
+A Choix des variables
+
+#A Les analyses se font sur les variables suivantes:
+
+- Taux de change
+- Monnaie en circulation
+- Inflation
+
+
+#B Test de stationnarité ou Augmented Dickey-Fuller test
+
+A time series is said to be “stationary” if it has no trend, exhibits constant variance over time, and has a constant autocorrelation structure over time.
+
+One way to test whether a time series is stationary is to perform an augmented Dickey-Fuller test, which uses the following null and alternative hypotheses:
+
+$H_0$: The time series is non-stationary. In other words, it has some time-dependent structure and does not have constant variance over time.
+
+$H_A$: The time series is stationary.
+
+To perform an augmented Dickey-Fuller test, we can use the adf.test() function from the tseries library. 
+
+Source: https://www.statology.org/dickey-fuller-test-in-r/
+
+```{r, message=F, warning=FALSE, echo=FALSE}
+
+ ggplot(agregatsmon.data3, aes(x = Date, y = monnaie_en_circulation))+
+   geom_line()+
+  labs(title = "monnaie en circulation",
+       subtitle = "Période : Septembre 1992 - septembre 2021")
+ 
+adf.test(agregatsmon.data3$monnaie_en_circulation)
+
+
+```
+
+
+
+```{r, message=F, warning=FALSE, echo=FALSE}
+ ggplot(agregatsmon.data3, aes(x = Date, y = taux_de_change))+
+   geom_line()+
+   labs(title = "taux de change",
+        y = "taux de change",
+        subtitle = "Période: Septembre 1990 - Septembre 2021")
+
+adf.test(agregatsmon.data3$taux_de_change)
+ 
+```
+
+
+```{r, message=F, warning=FALSE, echo=FALSE}
+
+ 
+  ggplot(agregatsmon.data3, aes(x = Date, y = inflation))+
+   geom_line()+
+   
+```
+
+Avec une p-value plus grande que le taux d'erreur de 5%, il n'y a pas d'assez de preuves pour rejetter l'hypothèse nulle de non-stationnarité des trois variables. Les variables sont donc non-stationnaires en niveau.
+
+Nous pouvons donc le vérifier à partir des graphes de la série temporelle desdites variables. En effet, on peut observer une grande variation de chaque variable de la période sous étude, septembre 1992 à septembre 2021. 
+
+
+# 1.C Test de stationnarité en difference
+
+A concept that is closely related to stationarity is order of integration, which is how many times we need to difference a series until it becomes stationary. 
+
+A series is I(0), that is, integrated of order  0  if it is already stationary (it is stationary in levels, not in differences); a series is I(1) if it is nonstationary in levels, but stationary in its first differences.
+
+source: https://bookdown.org/ccolonescu/RPoE4/time-series-nonstationarity.html
+
+```{r, message=F, warning=F, echo=F}
+a <- diff(agregatsmon.data3$monnaie_en_circulation)
+plot(a, ylab = "monnaie en circulation")
+adf.test(a, k=2)
+
+b <- diff(agregatsmon.data3$taux_de_change)
+plot(b, ylab = "taux de change")
+adf.test(b, k=2)
+
+c <- diff(agregatsmon.data3$`Inflation (glisse.annuel)`)
+plot(c, ylab = "inflation")
+adf.test(c, k=2)
+```
+
+Les p-value sont tous inferieures au risque $\alpha$ = 0.05, alors on rejette l'hypothèse nulle de non-stationnarite en différence. Les trois variables sont donc stationnaires en différence première ou deuxième.
+
+Cette conclusion est verifiable par les graphes. On peut observer la converge des points pour chaque variable, moins de variation donc une stationnarité. 
+
+\newpage
+
+# 2. Test de causalité, au sens de Granger
+
+Granger-Causality Test in R, The Granger Causality test is used to examine if one time series may be used to forecast another.
+
+Null Hypothesis (H0):
+
+Time series X does not cause time series Y to Granger-cause itself.
+
+Alternative Hypothesis (H1):
+
+Time series X  cause time series Y to Granger-cause itself.
+
+Knowing the value of a time series X at a given lag is valuable for forecasting the value of a time series Y at a later time period is referred to as “Granger-causes.”
+
+This test generates an F test statistic along with a p-value.
+
+We can reject the null hypothesis and infer that time series X Granger causes time series Y if the p-value is less than a particular significance level (e.g. =.05).
+
+In R, we may use the grangertest() function from the lm test package to perform a Granger-Causality test, which has the following syntax:
+
+grangertest(X, Y, order = 1)
+
+where:
+
+X: This is the very first time series.
+
+Y: The second set of the time series
+
+order: In the first time series, the number of lags to utilize. The default value is 1.
+
+Source: https://www.r-bloggers.com/2021/11/granger-causality-test-in-r-with-example/
+
+
+```{r, message=F, warning=F, echo=F}
+grangertest(inflation (gliss.annuel) ~ taux_de_change, data = agregatsmon.data3, order = 1)
+grangertest(inflation ~ taux_de_change, data = agregatsmon.data3, order = 2)
+
+
+
+
+```
+Avec des p-value < $\alpha$ = 0.05, on rejette l'hypothèse nulle de non-causalité au sens de Granger. On peut donc dire qu'un taux de change élevé résulte d'une inflation importée sur les biens et services.
+
+
+```{r, message=F, warning=F, echo=F}
+grangertest(taux_de_change ~ inflation , 
+            data = agregatsmon.data3, 
+            order = 1)
+
+
+grangertest(taux_de_change ~ inflation , 
+            data = agregatsmon.data3, 
+            order = 2)
+
+```
+
+\newpage
+
+# 2.B Granger-causality Test in Reverse
+
+Despite the fact that the null hypothesis of the test was rejected, it’s possible that reverse causation is occurring. That example, it’s probable that changes in the values of Y are affecting changes in the values of X.
+
+```{r, message = F, warning=F, echo=F}
+grangertest(taux_de_change ~ monnaie_en_circulation, 
+            data = agregatsmon.data3, 
+            order = 1)
+
+grangertest(taux_de_change ~ monnaie_en_circulation, 
+            data = agregatsmon.data3, 
+            order = 2)
+```
+Avec des p-value < $\alpha$ = 0.05, on rejette l'hypothèse nulle de non-causalite au sens de Granger. On peut donc inférer que connaitre la masse monétaire en circulation est utile pour prévoir les valeurs futures du taux de change, tant avec une série en niveau 1 et 2.
+
+
+```{r, message=F, warning=F, echo=F}
+grangertest(monnaie_en_circulation ~ Inflation , 
+            data = agregatsmon.data3, 
+            order = 1)
+
+grangertest(monnaie_en_circulation ~ Inflation, 
+            data = agregatsmon.data3, 
+            order = 2)
+
+
+```
+La masse monétaire en circulation peut donc engendrer une hausse de l'inflation. La cause même de l'inflation est la monnaie.
+
+
+
+
+# 3. Régression linéaire en fonction des tests de causalité
+
+La masse monétaire en circulation peut provoquer l'inflation si celle-ci ne correspond pas au besoin de l'économie et peut influer également sur le taux de change.
+
+On va faire la régression lineaire uniquement entre les variables monnaie en circulation et le taux de change. 
+
+```{r, message=F, warning=F, echo=F}
+kp <- lm(taux_de_change ~ monnaie_en_circulation , data = agregatsmon.data3)
+summary(kp)$coef
+
+```
+
+La monnaie en circulation peut nous dire quel sera le taux de change de la monnaie nationale par rapport aux devises (le dollar des États-Unis )
